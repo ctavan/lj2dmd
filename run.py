@@ -7,12 +7,20 @@ import re
 
 # Use some backend
 import matplotlib
-matplotlib.use('Pdf')
-extension = '.pdf'
+
+debug = False
+
+
+if len(sys.argv) > 1 and sys.argv[1] == "1":
+	debug = True
+
+if not debug:
+	matplotlib.use('Pdf')
+	extension = '.pdf'
 
 from pylab import *
 rc("font", family="sans-serif")
-rc("font", size=16)
+rc("font", size=12)
 
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
@@ -22,40 +30,53 @@ import scipy.special as special
 
 # Parameters for the md-simulation
 N = 100
-T = 1.8
-rc = 2.5
 dt = 0.01
-nequil = 1000
-nproduct = 5000
+nequil = 2000
+nproduct = 6000
 binwidth = 0.05
 
-rhos = [0.84, 0.5, 0.1]
+Ts = [0.8, 1.8]
 
-for rho in rhos:
-	# File/Foldername where output is stored
-	filename = 'N_%(N).d_rho_%(rho).2f_T_%(T).2f_rc_%(rc).2f_dt_%(dt).3f_nequil_%(nequil).d_nproduct_%(nproduct).d_binwidth_%(binwidth).3f' % \
-	{'N': N, 'rho': rho, 'T': T, 'rc': rc, 'dt': dt, 'nequil': nequil, 'nproduct': nproduct, 'binwidth': binwidth}
+rcs = [2.5, 2.0**(1.0/6.0)]
 
-	# Whether to simulate later on. Is set to false, if output already exists
-	simulate = True
+rhos_gr = [0.84, 0.5, 0.1]
+rhos_p_inv = [1/1.45, 1/1.5, 1/1.6, 1/1.75, 1/2.0, 1/2.5, 1/3.0, 1/4.0, 1/5.0, 1/6.5, 1/8.0, 1/10.0]
 
-	# Create the output folder if it doesn't exist
-	try:
-		dirname = 'run/'+filename
-		os.makedirs(dirname)
-	except OSError, e:
-		print >>sys.stderr, 'Execution failed:', e
-		print 'We dont simulate, just create the Plots!'
-		simulate = False
+rhos = []
+for i in rhos_gr:
+	rhos.append(i)
+for i in rhos_p_inv:
+	rhos.append(i)
 
-	# If output wasn't already there, start a simulation
-	if simulate:
-		# File for general simulation output
-		output = open(dirname+'/'+filename+'_output', 'w+', 1)
-		print 'Start simulation...'
-		command = ['time', '../../src/leapfrog', repr(N), repr(rho), repr(T), repr(rc), repr(dt), repr(nequil), repr(nproduct), repr(binwidth)]
-		print '	   With command:', ' '.join(command)
-		result = Popen(command, stdout=output, stderr=STDOUT, cwd=dirname).communicate()
+for T in Ts:
+	for rc in rcs:
+		for rho in rhos:
+			# File/Foldername where output is stored
+			filename = 'N_%(N).d_rho_%(rho).2f_T_%(T).2f_rc_%(rc).2f_dt_%(dt).3f_nequil_%(nequil).d_nproduct_%(nproduct).d_binwidth_%(binwidth).3f' % \
+			{'N': N, 'rho': rho, 'T': T, 'rc': rc, 'dt': dt, 'nequil': nequil, 'nproduct': nproduct, 'binwidth': binwidth}
+
+			# Whether to simulate later on. Is set to false, if output already exists
+			simulate = True
+
+			# Create the output folder if it doesn't exist
+			try:
+				dirname = 'run/'+filename
+				os.makedirs(dirname)
+			except OSError, e:
+				print >>sys.stderr, 'Execution failed:', e
+				print 'We dont simulate, just create the Plots!'
+				simulate = False
+
+			# If output wasn't already there, start a simulation
+			if simulate:
+				# File for general simulation output
+				output = open(dirname+'/'+filename+'_output', 'w+', 1)
+				print 'Start simulation...'
+				command = ['time', '../../src/leapfrog', repr(N), repr(rho), repr(T), repr(rc), repr(dt), repr(nequil), repr(nproduct), repr(binwidth)]
+				print '	   With command:', ' '.join(command)
+				result = Popen(command, stdout=output, stderr=STDOUT, cwd=dirname).communicate()
+
+T = 1.8
 
 # Now visualize the results
 figNum = 0
@@ -63,189 +84,211 @@ figNum = 0
 # Create new figure
 figNum += 1
 
-# w, h = figaspect(2.)
-# fig = Figure(figsize=(w,h))
-# ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-# ax.imshow(A, **kwargs)
-
-fig = plt.figure(figNum, frameon=False, figsize=(6,10))
+fig = plt.figure(figNum, frameon=False, figsize=(9,11))
 fig.clf() # clear figure
-fig.subplots_adjust(hspace=.3)
+fig.subplots_adjust(hspace=.3,wspace=.3)
 fig.suptitle(r'Pair-correlation-function $g(r)$')
 
-subNum = 0
+subNumC = 0
+# =============================================
+# g(r) for 3 denisities
+for rc in rcs:
+	subNumC += 1
+	subNumR = 0
+	for rho in rhos_gr:
+		# File/Foldername where output is stored
+		dirname = 'run/'+'N_%(N).d_rho_%(rho).2f_T_%(T).2f_rc_%(rc).2f_dt_%(dt).3f_nequil_%(nequil).d_nproduct_%(nproduct).d_binwidth_%(binwidth).3f' % \
+		{'N': N, 'rho': rho, 'T': T, 'rc': rc, 'dt': dt, 'nequil': nequil, 'nproduct': nproduct, 'binwidth': binwidth}
 
-for rho in rhos:
-	# File/Foldername where output is stored
-	dirname = 'run/'+'N_%(N).d_rho_%(rho).2f_T_%(T).2f_rc_%(rc).2f_dt_%(dt).3f_nequil_%(nequil).d_nproduct_%(nproduct).d_binwidth_%(binwidth).3f' % \
-	{'N': N, 'rho': rho, 'T': T, 'rc': rc, 'dt': dt, 'nequil': nequil, 'nproduct': nproduct, 'binwidth': binwidth}
+		averages = csv2rec(dirname+'/outAvgFinal.txt', delimiter="\t", names=['t', 'T', 'Etot'])
 
-	averages = csv2rec(dirname+'/outAvgFinal.txt', delimiter="\t", names=['t', 'T','Tt','Etot','Etott'])
+		print 'Plotting g(r) vs r'
 
-	print 'Plotting g(r) vs r'
+		subNumR += 1
+		ax = fig.add_subplot(len(rhos_gr),len(rcs),(2*subNumR-1)+subNumC-1)
+		ax.text(2.5, 3, r'$T = %(T).3f$' % {'T': float(averages['T'][0])})
+		ax.text(2.5, 2.3, r'$\rho = %(rho).3f$' % {'rho': rho})
+		ax.text(2.5, 1.7, r'$rc = %(rc).3f$' % {'rc': rc})
 
-	subNum += 1
-	ax = fig.add_subplot(len(rhos),1,subNum)
-	ax.text(2.5, 3, r'$T = %(T).3f$' % {'T': float(averages['T'][0])})
-	ax.text(2.5, 2.3, r'$\rho = %(rho).3f$' % {'rho': rho})
+		ax.set_xlabel(r'$r$')
+		ax.set_ylabel(r'$g(r)$')
 
-	ax.set_xlabel(r'$r$')
-	ax.set_ylabel(r'$g(r)$')
+		data = csv2rec(dirname+'/outGr.txt', delimiter="\t", names=['x','y'])
+		ax.plot(data['x'], data['y'], 'ro')
 
-	data = csv2rec(dirname+'/outGr.txt', delimiter="\t", names=['x','y'])
-	ax.plot(data['x'], data['y'], 'ro')
+		ax.axis([0, 3.5, -1, 4])
 
-	ax.axis([0, 3.5, -1, 4])
+	if not debug:
+		plt.savefig('g_r'+extension)
 
-plt.savefig('g_r'+extension)
-plt.show()
+# =============================================
+# Plot time evolution of T
+figNum += 1
 
+rc = 2.5
 
-	# pdf, bins, patches = ax.hist(x, 50, range=[xmin, xmax], normed=1, facecolor='green', alpha=0.75)
-	# 
-	# # Write all parameters into the plot title
-	# if doExchanges:
-	# 	title = r'$T = %(temp).3f,\, x_0 = %(x0).2f,\, N_\mathrm{exch} = %(nexchanges)d,\, n_\mathrm{step} = %(nsteps)d,\, \gamma = %(gamma)d,\, \mathrm{d}t= %(dt).3f$' %  \
-	# 	{'temp': temp, 'gamma': gamma, 'x0': x0, 'nexchanges': nexchanges, 'nsteps': nsteps, 'dt': dt}
-	# else:
-	# 	title = r'$T = %(temp).3f,\, x_0 = %(x0).2f,\, N = %(nexchanges)d,\, \gamma = %(gamma)d,\, \mathrm{d}t= %(dt).3f$' %  \
-	# 	{'temp': temp, 'gamma': gamma, 'x0': x0, 'nexchanges': nexchanges*nsteps, 'dt': dt}
-	# plt.title(title)
-	# 
-	# # add expected distribution
-	# # t = arange(bins[0], bins[-1], 0.01)
-	# t = arange(xmin, xmax, 0.01)
-	# w = (a*t**4 + b*t**2 + c*t);
-	# # Calculate the normalization constant, i.e. integrate over the whole axis
-	# CN,CNerr = integrate.quad(lambda t: exp(-(a*t**4 + b*t**2 + c*t)/temp), -inf, inf)
-	# print "normalization constant "+repr(CN)
-	# ax.plot(t, exp(-w/temp)/CN, 'b-', linewidth=lw)
-	# 
-	# ax.set_ylim(0, ylims[i])
-	# i += 1
-	# 
-	# # ax.set_ylabel(r'$\exp[-\beta\, U(x)]$')
-	# ax.set_ylabel(r'$1/Z\, \exp[-\beta\, U(x)]$')
-	# ax.set_xlabel(r'Position $x$')
-	# 
-	# 
-	# # also plot the potential
-	# ax = plt.subplot(212)
-	# ax.grid(True)
-	# ax.plot(t, w, 'r-', linewidth=lw)
-	# 
-	# ax.set_ylabel(r'$g(r)$')
-	# ax.set_xlabel(r'$r$')
-	# 
-	# # Save plot to file
-	# plt.savefig(dirname+'/'+outfile+extension)
+fig = plt.figure(figNum, frameon=False)
+fig.clf() # clear figure
+fig.subplots_adjust(hspace=.3)
+fig.suptitle(r'Instantaneous temperature and mean temperature')
+
+ax = fig.add_subplot(1,1,1)
+
+ax.set_xlabel(r'$t$')
+ax.set_ylabel(r'$T$')
+
+rho = 0.5
+dirname = 'run/'+'N_%(N).d_rho_%(rho).2f_T_%(T).2f_rc_%(rc).2f_dt_%(dt).3f_nequil_%(nequil).d_nproduct_%(nproduct).d_binwidth_%(binwidth).3f' % \
+{'N': N, 'rho': rho, 'T': T, 'rc': rc, 'dt': dt, 'nequil': nequil, 'nproduct': nproduct, 'binwidth': binwidth}
+
+data = csv2rec(dirname+'/outAverages.txt', delimiter="\t", names=['t', 'Tt','T','Etott','Etot'])
+
+ax.plot(data['t'], data['Tt'], 'ro', data['t'], data['T'], 'b-', linewidth=3, markersize=4)
+
+ax.set_ylim(T-0.7, T+0.7)
+
+if not debug:
+	plt.savefig('T_mean'+extension)
 
 
-	# # Create another figure with the energy propability distributions
-	# figNum += 1
-	# fig = plt.figure(figNum, frameon=False)
-	# fig.clf() # clear figure
-	# 
-	# # Title remains the same
-	# plt.title(title)
-	# 
-	# # New plot
-	# ax = fig.add_subplot(111)
-	# 
-	# # Get the replica index of each step from the data read above
-	# x = data[:,0]
-	# x = a*x**4 + b*x**2 + c*x
-	# pdf, bins, patches = ax.hist(x, 100, range=[-4, 1], normed=1, facecolor='green', alpha=0.75, histtype='step')
-	# 
-	# ax.grid(True)
-	# ax.set_yscale('log')
-	# ax.set_ylim(0.1, 10)
-	# ax.set_ylabel('Probability P')
-	# ax.set_xlabel(r'Potential Energy U')
-	# 
-	# # Save plot to file
-	# plt.savefig(dirname+'/energy_probability_'+outfile+extension)
-	# 
-	# 
-	# # If replica exchange method wasn't applied, we're done
-	# if not doExchanges:
-	# 	continue
-	# 
-	# # Create another figure for the replica exchange visualization
-	# figNum += 1
-	# fig = plt.figure(figNum, frameon=False)
-	# fig.clf() # clear figure
-	# 
-	# # Title remains the same
-	# plt.title(title)
-	# 
-	# # Get the replica index of each step from the data read above
-	# x = data[:,1]
-	# t = range(0, alen(x))
-	# 
-	# # New plot
-	# ax = fig.add_subplot(111)
-	# ax.plot(t, x, 'r.', markevery=mev)
-	# 
-	# ax.grid(True)
-	# ax.set_ylim(-.5, 7.5)
-	# ax.set_ylabel('Replica')
-	# ax.set_xlabel(r'Exchangestep $n$')
-	# 
-	# # Save plot to file
-	# plt.savefig(dirname+'/replica_at_T_'+outfile+extension)
+# =============================================
+# g(r) for 3 denisities
+dp08 = []
+dp18 = []
+p08 = {}
+p18 = {}
+Tlist08 = {}
+Tlist18 = {}
+rhoss08 = []
+rhoss18 = []
+rho_invs08 = {}
+rho_invs18 = {}
+for T in Ts:
+	p = {'r': [], 'lj': []}
+	Tlist = {'r': [], 'lj': []}
+	rho_invs = {'r': [], 'lj': []}
+	for rc in rcs:
+		rhoss = []
+		for rho in rhos_p_inv:
+			if rc == 2.5:
+				rcname = 'lj'
+			else:
+				rcname = 'r'
+
+			# File/Foldername where output is stored
+			dirname = 'run/'+'N_%(N).d_rho_%(rho).2f_T_%(T).2f_rc_%(rc).2f_dt_%(dt).3f_nequil_%(nequil).d_nproduct_%(nproduct).d_binwidth_%(binwidth).3f' % \
+			{'N': N, 'rho': rho, 'T': T, 'rc': rc, 'dt': dt, 'nequil': nequil, 'nproduct': nproduct, 'binwidth': binwidth}
+
+			averages = csv2rec(dirname+'/outAvgFinal.txt', delimiter="\t", names=['t', 'T', 'Etot', 'rho', 'rhoinv', 'p'])
+
+			p[rcname].append(float(averages['p'][0]))
+			rho_invs[rcname].append(float(averages['rhoinv'][0]))
+			rhoss.append(float(averages['rho'][0])**2.0)
+			Tlist[rcname].append(float(averages['T'][0]))
 
 
-# # Now draw some plots for the temperature evolution of each replicum
-# if doExchanges:
-# 	for outfile in os.listdir(dirname):
-# 		# Filter outputfiles
-# 		match = re.search("^output_N_([0-9]+)$", outfile)
-# 		if not match:
-# 			continue
-# 
-# 		# Extract replica-id from filename
-# 		N = int(match.group(1))
-# 
-# 		print "Plotting temperatures, that replicum "+repr(N)+" went through."
-# 
-# 		# Create another figure for the temperature exchange
-# 		figNum += 1
-# 		fig = plt.figure(figNum, frameon=False)
-# 		fig.clf() # clear figure
-# 		fig.subplots_adjust(hspace=.3)
-# 		# fig.set_figheight(fig.get_figheight()*1.3)
-# 
-# 		# Plot title
-# 		plt.title('Replicum '+repr(N))
-# 
-# 		# Get the temperatures for the current replicum
-# 		data = loadtxt(dirname+'/'+outfile)
-# 		x = data[:,0]
-# 		t = range(0, alen(x))
-# 
-# 		# New plot with temperatures
-# 		ax = plt.subplot(211)
-# 		ax.plot(t, x, 'b-', markevery=mev)
-# 		ax.set_yscale('log')
-# 		ax.set_ylim(0.08, 4)
-# 
-# 		ax.grid(True)
-# 		ax.set_ylabel(r'Temperature $T$')
-# 		ax.set_xlabel(r'Exchangestep $n$')
-# 
-# 		# New plot with position
-# 		x = data[:,1]
-# 		t = range(0, alen(x))
-# 
-# 		ax = plt.subplot(212)
-# 		ax.plot(t, x, 'r-', markevery=mev)
-# 		ax.set_ylim(xmin, xmax)
-# 
-# 		ax.grid(True)
-# 		ax.set_ylabel(r'Position $x$')
-# 		ax.set_xlabel(r'Exchangestep $n$')
-# 
-# 		# Save plot to file
-# 		plt.savefig(dirname+'/replica_N_'+outfile+extension)
-# 
+	dp = [x - y for (x,y) in zip(p['r'],p['lj'])]
+	if T == 0.8:
+		dp08 = dp
+		p08 = p
+		Tlist08 = Tlist
+		rhoss08 = rhoss
+		rho_invs08 = rho_invs
+	else:
+		dp18 = dp
+		p18 = p
+		Tlist18 = Tlist
+		rhoss18 = rhoss
+		rho_invs18 = rho_invs
+
+print 'Plotting p(rho)'
+
+Tavg = (float(sum(Tlist18['lj']))/float(len(Tlist18['lj']))+float(sum(Tlist18['r']))/float(len(Tlist18['r'])))/2.0
+
+figNum += 1
+
+fig = plt.figure(figNum, frameon=False, figsize=(6,6))
+fig.clf() # clear figure
+fig.subplots_adjust(hspace=.3)
+fig.suptitle(r'Pressure $P$ as a function of $1/\rho$')
+
+ax = fig.add_subplot(1,1,1)
+ax.text(7, 10, r'$T = %(T).3f$' % {'T': Tavg})
+
+ax.set_xlabel(r'$1/\rho$')
+ax.set_ylabel(r'$P$')
+
+x = arange(0.5, 10, 0.01)
+y = 1/x*Tavg;
+
+ax.plot(rho_invs18['lj'], p18['lj'], 'ro', label=r'$r_c = 2.5$')
+ax.plot(rho_invs18['r'], p18['r'], 'gs', label=r'$r_c = 2^{1/6}$')
+ax.plot(x, y, 'b-', label='Ideal gas')
+ax.legend()
+
+ax.axis([0, 11, -1, 12])
+
+if not debug:
+	plt.savefig('p_rho_T18'+extension)
+
+Tavg = (float(sum(Tlist08['lj']))/float(len(Tlist08['lj']))+float(sum(Tlist08['r']))/float(len(Tlist08['r'])))/2.0
+
+figNum += 1
+
+fig = plt.figure(figNum, frameon=False, figsize=(6,6))
+fig.clf() # clear figure
+fig.subplots_adjust(hspace=.3)
+fig.suptitle(r'Pressure $P$ as a function of $1/\rho$')
+
+ax = fig.add_subplot(1,1,1)
+ax.text(7, max(p08['lj'])-2, r'$T = %(T).3f$' % {'T': Tavg})
+
+ax.set_xlabel(r'$1/\rho$')
+ax.set_ylabel(r'$P$')
+
+x = arange(0.5, 10, 0.01)
+y = 1/x*Tavg;
+
+ax.plot(rho_invs08['lj'], p08['lj'], 'ro', label=r'$r_c = 2.5$')
+ax.plot(rho_invs08['r'], p08['r'], 'gs', label=r'$r_c = 2^{1/6}$')
+ax.plot(x, y, 'b-', label='Ideal gas')
+ax.legend()
+
+ax.axis([0, 11, -0.5, 4])
+
+if not debug:
+	plt.savefig('p_rho_T08'+extension)
+
+
+
+figNum += 1
+
+fig = plt.figure(figNum, frameon=False, figsize=(6,6))
+fig.clf() # clear figure
+fig.subplots_adjust(hspace=.3)
+fig.suptitle(r'Pressure difference $P_R - P_{LJ}$')
+
+ax = fig.add_subplot(1,1,1)
+
+ax.set_xlabel(r'$\rho^2$')
+ax.set_ylabel(r'$\Delta P$')
+
+# x = arange(0.5, 10, 0.01)
+# y = 1/x*Tavg;
+
+ax.plot(rhoss08, dp08, 'ro', label=r'$T = 0.8$')
+ax.plot(rhoss18, dp18, 'gs', label=r'$T = 1.8$')
+# ax.plot(x, y, 'b-', label='Ideal gas')
+ax.legend()
+
+# delp = []
+# for p in p08
+
+
+
+if not debug:
+	plt.savefig('vdw'+extension)
+
+
+if debug:
+	plt.show()

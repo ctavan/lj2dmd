@@ -389,16 +389,6 @@ int main(int argc, char *argv[])
 			update_histogram();
 
 			fprintf(outAverages, "%6.3f\t%e\t%e\t%e\t%e\n", t, Tt, avg_temp.average(), etot, avg_etot.average());
-
-			printf("sampling at n = %d out of nt = %d\n", n, nt);
-
-			if (n == nt) {
-				FILE *outAvgFinal;
-				outAvgFinal = fopen("outAvgFinal.txt", "w+");
-				fprintf(outAvgFinal, "#t\tT(t)\t\t<T(t)>\t\tE_tot(T)\t\t<E_tot(T)>\n");
-				fprintf(outAvgFinal, "%6.3f\t%e\t%e\t%e\t%e\n", t, Tt, avg_temp.average(), etot, avg_etot.average());
-				fclose(outAvgFinal); outAvgFinal = NULL;
-			}
 		}
 
 		if ((n+1)%(nt/10) == 0 || n == 0) {
@@ -411,15 +401,32 @@ int main(int argc, char *argv[])
 
 	print_coords("outCoords_end.txt");
 
-	printf("Printing histogram for g(r)\n");
+	printf("Printing histogram for g(r) & calculating pressure\n");
 	fprintf(outGr, "#r\tg(r)\n");
+	double p = 0; // Pressure
 	for(int i = 0; i < nbins; i++) {
 		double R = i*binwidth;
 		double area = 2.0*PI*R*binwidth;
 		// Multiply g(r) by two, since in the histogram we only counted each pair once, but each pair
 		// gives two contributions to g(r)
-		fprintf(outGr, "%f\t%f\n", R, 2.0*(double)hist[i]/(rho*area*(double)bincount*N));
+		double gr = 2.0*(double)hist[i]/(rho*area*(double)bincount*N);
+		fprintf(outGr, "%f\t%f\n", R, gr);
+		// Calculate other quantities from g(r)
+		if (R > 0 && R < rc) {
+			double r6i = pow(1.0/R, 6);
+			p += gr*2*PI*rho*rho*R*R*48*(r6i*r6i-0.5*r6i)*binwidth/2;
+		}
 	}
+	p = p + rho*avg_temp.average();
+	printf("Final pressure P(%g) = %g\n", rho, p);
+
+
+	FILE *outAvgFinal;
+	outAvgFinal = fopen("outAvgFinal.txt", "w+");
+	fprintf(outAvgFinal, "#t\t<T(t)>\t\t<E_tot(T)>\trho\t\t1/rho\t\tp\n");
+	fprintf(outAvgFinal, "%6.3f\t%e\t%e\t%e\t%e\t%e\n", t, avg_temp.average(), avg_etot.average(), rho, 1.0/rho, p);
+	fclose(outAvgFinal); outAvgFinal = NULL;
+
 
 	delete [] r;
 	delete [] r_next;

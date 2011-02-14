@@ -149,6 +149,9 @@ berechnen. Bezieht man diese lokale Teilchendichte nun noch auf die durschnittli
 \begin{align}
 	\rho(r) = \frac{1}{\rho} \frac{n(r)}{2 \pi r \Delta r}.
 \end{align}
+
+\minisec{Druck}
+Der Druck wurde direkt aus der Paarkorrelationsfunktion wie in \cite{sperandeo} beschrieben berechnet.
 % subsection berechnung_physikalischer_größen (end)
 
 \section{Ergebnisse} % (fold)
@@ -157,15 +160,50 @@ Sofern nicht anders erwähnt wurden folgende Parameter für die Simulationen ver
 \begin{align*}
 	N &= 100\\
 	T &= 1.8\\
-	r_c &= 2.5\\
+	r_c &= 2.5 \;\text{und}\; 2^{1/6}\\
 	\Delta t &= 0.01\\
-	n\ind{equil} &= 1000\\
-	n\ind{product} &= 5000\\
+	n\ind{equil} &= 2000\\
+	n\ind{product} &= 6000\\
 	\Delta r &= 0.05\\
 \end{align*}
-\minisec{Paarkorrelationsfunktion}
+Wie Abb. \ref{fig:T_Mean} deutlich zeigt fluktuiert der Mittelwert der Temperatur während der Produktionsphase kaum was ein Zeichen für eine ausreichende Equilibrierung ist. In verschiedenen Simulationsläufen schwankte der Mittelwert der Temperatur allerdings um etwa $5 \%$ um den vorgegebenen Wert von $T = 1.8$.
+\begin{figure}[tbp]
+ \centering
+  \includegraphics[width=12cm]{../T_mean}
+ \caption{Instantane Temperatur und Entwicklung des Mittelwerts der Temperatur während der Produktionsphase bei $\rho = 0.84$.}\label{fig:T_Mean}
+\end{figure}
 
+\minisec{Paarkorrelationsfunktion}
+Die Paarkorrelationsfunktion ist für drei verschiedene Dichten ist in Abb. \ref{fig:g_r} dargestellt. Sowohl qualitativ als auch quantitativ ergibt sich eine sehr gute Übereinstimmung mit Abb. 3 a) aus \cite{sperandeo}.
+\begin{figure}[tbp]
+ \centering
+  \includegraphics[width=14cm]{../g_r}
+ \caption{Paarkorrelationsfunktion $g(r)$ für die Dichten $\rho = 0.84, 0.5$ und $0.1$.}\label{fig:g_r}
+\end{figure}
+
+\minisec{Druck}
+Wie man Abb. \ref{fig:p_rho} entnehmen kann stimmen auch die Ergebnisse für den Druck qualitativ und quantitativ sehr gut mit Abb. 5 aus \cite{sperandeo} überein.
+\begin{figure}[tbp]
+ \centering
+  \includegraphics[width=12cm]{../p_rho_T18}
+ \caption{Druck $P$ als Funktion der Inversen der Dichte $1/\rho$.}\label{fig:p_rho}
+\end{figure}
+
+
+\minisec{Qualitaet des VdW-Modells}
+Auch Abb. 7 aus \cite{sperandeo} konnte zumindest qualitativ reproduziert werden, wie Abb. \ref{fig:vdw} zeigt. Die Druckunterschied sind bei uns quantitativ etwas höher.
+\begin{figure}[tbp]
+ \centering
+  \includegraphics[width=12cm]{../vdw}
+ \caption{Druckdifferenz $\Delta P = P_R - P_{LJ}$ zwischen R-Modell ($r_c = 2^{1/6}$) und LJ-Modell ($r_c = 2.5$) als Funktion des Quadrats der Dichte $\rho^2$.}\label{fig:vdw}
+\end{figure}
 % section ergebnisse (end)
+
+
+\section{Code} % (fold)
+\label{sec:code}
+Der Quellcode liegt diesem Text bei und muss im Ordner \texttt{src} via \texttt{make} kompiliert werden. Danach kann man das script \texttt{./run.py} ausführen, das einige Simulationen startet und Plots erstellt.
+% section code (end)
 
 
 %%=================== Ende des Dokuments =================================
