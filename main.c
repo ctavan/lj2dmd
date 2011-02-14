@@ -298,6 +298,7 @@ int main(int argc, char *argv[])
 	printf("======== INIT AVERAGERS ========\n");
 	avg_temp.init();
 	avg_etot.init();
+	printf("Averagers initialized!\n");
 	printf("================================\n\n");
 
 	printf("======= START INTEGRATION ======\n");
@@ -339,8 +340,8 @@ int main(int argc, char *argv[])
 		// Equilibration phase, scale velocities to keep temperature
 		if (n < nequil)
 		{
-			// Rescale velocities every 20 timesteps
-			if (n%20 == 0)
+			// Rescale velocities every ?? timesteps
+			if (n%10 == 0)
 			{
 				scale_velocities();
 			}
@@ -352,8 +353,13 @@ int main(int argc, char *argv[])
 			fprintf(outAverages, "%6.3f\t%e\t%e\t%e\t%e\n", t, Tt, avg_temp.average(), etot, avg_etot.average());
 		}
 
+		if ((n+1)%(nt/10) == 0 || n == 0) {
+			printf("Finished %5d (t = %5.1f) out of %d (t = %g) timesteps: %3.f %% <T> = %g\n", n+1, t, nt, tmax, (double)n/(double)nt*100, avg_temp.average());
+		}
+
 		if(debug) printf("\n");
 	}
+	printf("================================\n\n");
 
 	print_coords("outCoords_end.txt");
 
