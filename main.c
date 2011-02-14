@@ -133,6 +133,7 @@ double u_lj_deriv_shift;
 
 void forces();
 void scale_velocities();
+void update_histogram();
 
 /**
  * Global variables
@@ -140,6 +141,7 @@ void scale_velocities();
 const bool debug = false;			// Enable/disable debug output
 Ran myran(time(NULL));				// Random number generator (see ran.h)
 const int nsamp = 10;				// Sample every nsamp timesteps
+const double grmax = 3.5;			// Maximum radius for sampling g(r)
 
 // System parameters
 int N;						// Number of particles
@@ -155,8 +157,9 @@ TVector* v_next = NULL;
 TVector* F = NULL;			// Arrays for inter-particle-forces
 
 TVector vsum;				// Velocity of center of mass
-double vsum2 = 0;			// Mean squared velocity
+double vsum2 = 0;			// Mean squared velocity = 2 E_kin
 double epot = 0;			// Total potential energy
+double virial = 0;			// Total virial
 
 
 double dt = 0;				// Length of one timestep
@@ -166,10 +169,15 @@ double tmax = 0;			// Total simulation time
 
 
 TAverager avg_temp;			// Averager for the temperature
+TAverager avg_epot;			// Averager for the total energy
+TAverager avg_ekin;			// Averager for the total energy
 TAverager avg_etot;			// Averager for the total energy
+TAverager avg_vir;			// Averager for the total virial
 
+int bincount, nbins;
+double binwidth;
+int* hist = NULL;			// Histogramm for radial distribution function
 
-int* hist = NULL;			// Histogramm for radial density distribution
 FILE* outHistogram;			// Outputfile for histogram
 FILE* outTrajectories;		// Outputfile for trajectories
 FILE* outAverages;			// Outputfile for averages
@@ -182,7 +190,7 @@ FILE* outAverages;			// Outputfile for averages
 int main(int argc, char *argv[])
 {
 
-	if (argc < 8)
+	if (argc < 9)
 	{
 		printf("Usage: %s <N> <eta> <dr> <nequil> <nproduct> <binwidth>\n", argv[0]);
 		printf("\t<N>        Number of particles\n");
@@ -192,6 +200,7 @@ int main(int argc, char *argv[])
 		printf("\t<dt>       Length of one timestep\n");
 		printf("\t<nequil>   Number of equilibration timesteps to be performed\n");
 		printf("\t<nproduct> Number of production timesteps to be performed\n");
+		printf("\t<binwidth> Width of a bin for correlation length histogram\n");
 		exit(EXIT_SUCCESS);
 	}
 
@@ -297,8 +306,21 @@ int main(int argc, char *argv[])
 
 	printf("======== INIT AVERAGERS ========\n");
 	avg_temp.init();
+	avg_epot.init();
+	avg_ekin.init();
 	avg_etot.init();
+	avg_vir.init();
 	printf("Averagers initialized!\n");
+
+	// Histogram for pair correlation function
+	binwidth = atof(argv[8]);				// Width of a histogram-bin
+	nbins = ceil(grmax/binwidth);			// Maximum correlation length to be measured should be L/2 due to periodic BC
+	bincount = 0;							// Number of counts done on the histogram
+	hist = new int[nbins];
+	for (int i = 0; i < nbins; i++) {
+		hist[i] = 0;
+	}
+	printf("Using histogram with %d bins of width %f\n", nbins, binwidth);
 	printf("================================\n\n");
 
 	printf("======= START INTEGRATION ======\n");
@@ -307,6 +329,15 @@ int main(int argc, char *argv[])
 	fprintf(outAverages, "t\tT(t)\t\t<T(t)>\t\tE_tot(T)\t\t<E_tot(T)>\n");
 	for (int n = 0; n < nt; n++)
 	{
+		if (n == 0)
+		{
+			printf("Equilibration phase started.\n");
+		}
+		if (n == nequil)
+		{
+			printf("Production phase started.\n");
+		}
+
 		// Current time
 		t = dt*n;
 		if(debug) printf("t:\t%6.3f\t\n", t);
@@ -331,11 +362,6 @@ int main(int argc, char *argv[])
 			// Write trajectories to a file
 			fprintf(outTrajectories, "%6.3f\t%6d\t%e\t%e\t%e\t%e\n", t, i, r[i].x, r[i].y, v[i].x, v[i].y);
 		}
-		double Tt = vsum2/(2.0*(double)N);
-		double etot = (epot + 0.5*vsum2);
-		if(debug) printf("vc(t):\t(%g,%g)\n", vsum.x, vsum.y);
-		if(debug) printf("T(%6.3f):\t%g\n", t, Tt);
-		if(debug) printf("E_tot:\t%g\n", etot);
 
 		// Equilibration phase, scale velocities to keep temperature
 		if (n < nequil)
@@ -348,8 +374,20 @@ int main(int argc, char *argv[])
 		}
 		else if (n%nsamp == 0)
 		{
+			double Tt = vsum2/(2.0*(double)N);
 			avg_temp.add(Tt);
+
+			avg_epot.add(epot);
+			avg_vir.add(virial);
+
+			double ekin = 0.5*vsum2;
+			avg_ekin.add(ekin);
+
+			double etot = (epot + ekin);
 			avg_etot.add(etot);
+
+			update_histogram();
+
 			fprintf(outAverages, "%6.3f\t%e\t%e\t%e\t%e\n", t, Tt, avg_temp.average(), etot, avg_etot.average());
 		}
 
@@ -362,6 +400,15 @@ int main(int argc, char *argv[])
 	printf("================================\n\n");
 
 	print_coords("outCoords_end.txt");
+
+	printf("Printing histogram for g(r)\n");
+	for(int i = 0; i < nbins; i++) {
+		double R = i*binwidth;
+		double area = 2.0*PI*R*binwidth;
+		// Multiply g(r) by two, since in the histogram we only counted each pair once, but each pair
+		// gives two contributions to g(r)
+		fprintf(outHistogram, "%f\t%f\n", R, 2.0*(double)hist[i]/(rho*area*(double)bincount*N));
+	}
 
 	delete [] r;
 	delete [] r_next;
@@ -516,28 +563,6 @@ double u_lj_deriv_shifted(double r2)
 	return u_lj_deriv(r2) - u_lj_deriv_shift;
 }
 
-/** \brief Calculate the force between two LJ-particles
-	
-		Calculates the force between two LJ-particles. The returned
-		value containes the x- and y-component of the force.
-	
-	\author Christoph Tavan TU Berlin
-	\date 2011-02-13
-	\param TPartDist Distance between two particles
-	\return TVector Force
-	\sa
-**/
-TVector f_lj(TPartDist dr)
-{
-	double ff = -1.0*u_lj_deriv(dr.r2);
-
-	TVector f;
-
-	f.x = ff*dr.dx;
-	f.y = ff*dr.dy;
-
-	return f;
-}
 /** \brief Calculate the force between two LJ-particles with shifted LJ potential
 	
 		Calculates the force between two LJ-particles. The returned
@@ -546,21 +571,32 @@ TVector f_lj(TPartDist dr)
 	\author Christoph Tavan TU Berlin
 	\date 2011-02-13
 	\param TPartDist Distance between two particles
+	\param double Virial between the two particles being considered
 	\return TVector Force
 	\sa
 **/
-TVector f_lj_shifted(TPartDist dr)
+TVector f_lj_shifted(TPartDist dr, double virij)
 {
-	double ff = -1.0*u_lj_deriv_shifted(dr.r2);
-
 	TVector f;
 
-	f.x = ff*dr.dx;
-	f.y = ff*dr.dy;
+	f.x = virij*dr.dx;
+	f.y = virij*dr.dy;
 
 	return f;
 }
 
+/** \brief Calculate the virial for two LJ-Particles
+	
+	\author Christoph Tavan TU Berlin
+	\date 2011-02-14
+	\param TPartDist Distance between two particles
+	\return double Virial for the two particles
+	\sa
+**/
+double vir_lj_shifted(TPartDist dr)
+{
+	return -1.0*u_lj_deriv_shifted(dr.r2);
+}
 
 /** \brief Calculate the forces for all particle-pairs
 	
@@ -572,6 +608,7 @@ TVector f_lj_shifted(TPartDist dr)
 void forces()
 {
 	epot = 0.0;
+	virial = 0.0;
 	// Reset all forces
 	for (int i = 0; i < N; i++)
 	{
@@ -590,14 +627,27 @@ void forces()
 				continue;
 			}
 
-			TVector flj = f_lj_shifted(rij);
+			double virij = vir_lj_shifted(rij);
+
+			TVector flj = f_lj_shifted(rij, virij);
 			F[i] += flj;
 			F[j] -= flj;
 			epot += u_lj_shifted(rij.r2);
+			virial += virij;
 		}
 	}
 }
 
+/** \brief Rescale velocities
+	
+		Rescale velocities during equilibration phase to keep the temperature
+		approximately fixed to the desired value.
+	
+	\author Christoph Tavan TU Berlin
+	\date 2011-02-14
+	\return void
+	\sa
+**/
 void scale_velocities()
 {
 	double v2 = 0;
@@ -610,4 +660,25 @@ void scale_velocities()
 	{
 		v[i] *= fs;
 	}
+}
+
+
+void update_histogram() {
+	// Calculate histogram (correlation length)
+	for (int i = 0; i < N-1; i++) {
+		for (int j = i+1; j < N; j++) {
+			// Get distance between particles i and j
+			TPartDist rij = distance_special(r[i], r[j]);
+			double r = sqrt(rij.r2);
+			// Find correct bin of histogram
+			int bin = floor(r/binwidth);
+			if (bin >= nbins) {
+				continue;
+			}
+			// printf("Bin:\t%d\n", bin);
+			hist[bin]++;
+		}
+	}
+	// Number of times averaging is done
+	bincount++;
 }
