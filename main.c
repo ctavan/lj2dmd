@@ -178,7 +178,7 @@ int bincount, nbins;
 double binwidth;
 int* hist = NULL;			// Histogramm for radial distribution function
 
-FILE* outHistogram;			// Outputfile for histogram
+FILE* outGr;				// Outputfile for g(r)
 FILE* outTrajectories;		// Outputfile for trajectories
 FILE* outAverages;			// Outputfile for averages
 
@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_SUCCESS);
 	}
 
-	outHistogram = fopen("outHistogram.txt", "w+");
+	outGr = fopen("outGr.txt", "w+");
 	outTrajectories = fopen("outTrajectories.txt", "w+");
 	outAverages = fopen("outAverages.txt", "w+");
 
@@ -325,9 +325,9 @@ int main(int argc, char *argv[])
 
 	printf("======= START INTEGRATION ======\n");
 	t = 0;
-	fprintf(outTrajectories, "t\tn\tr_x\t\tr_y\t\tv_x\t\tv_y\n");
-	fprintf(outAverages, "t\tT(t)\t\t<T(t)>\t\tE_tot(T)\t\t<E_tot(T)>\n");
-	for (int n = 0; n < nt; n++)
+	fprintf(outTrajectories, "#t\tn\tr_x\t\tr_y\t\tv_x\t\tv_y\n");
+	fprintf(outAverages, "#t\tT(t)\t\t<T(t)>\t\tE_tot(T)\t\t<E_tot(T)>\n");
+	for (int n = 0; n <= nt; n++)
 	{
 		if (n == 0)
 		{
@@ -389,6 +389,16 @@ int main(int argc, char *argv[])
 			update_histogram();
 
 			fprintf(outAverages, "%6.3f\t%e\t%e\t%e\t%e\n", t, Tt, avg_temp.average(), etot, avg_etot.average());
+
+			printf("sampling at n = %d out of nt = %d\n", n, nt);
+
+			if (n == nt) {
+				FILE *outAvgFinal;
+				outAvgFinal = fopen("outAvgFinal.txt", "w+");
+				fprintf(outAvgFinal, "#t\tT(t)\t\t<T(t)>\t\tE_tot(T)\t\t<E_tot(T)>\n");
+				fprintf(outAvgFinal, "%6.3f\t%e\t%e\t%e\t%e\n", t, Tt, avg_temp.average(), etot, avg_etot.average());
+				fclose(outAvgFinal); outAvgFinal = NULL;
+			}
 		}
 
 		if ((n+1)%(nt/10) == 0 || n == 0) {
@@ -402,12 +412,13 @@ int main(int argc, char *argv[])
 	print_coords("outCoords_end.txt");
 
 	printf("Printing histogram for g(r)\n");
+	fprintf(outGr, "#r\tg(r)\n");
 	for(int i = 0; i < nbins; i++) {
 		double R = i*binwidth;
 		double area = 2.0*PI*R*binwidth;
 		// Multiply g(r) by two, since in the histogram we only counted each pair once, but each pair
 		// gives two contributions to g(r)
-		fprintf(outHistogram, "%f\t%f\n", R, 2.0*(double)hist[i]/(rho*area*(double)bincount*N));
+		fprintf(outGr, "%f\t%f\n", R, 2.0*(double)hist[i]/(rho*area*(double)bincount*N));
 	}
 
 	delete [] r;
@@ -418,7 +429,7 @@ int main(int argc, char *argv[])
 	r = r_next = v = v_next = F = NULL;
 
 	// Close filepointer
-	fclose(outHistogram); outHistogram = NULL;
+	fclose(outGr); outGr = NULL;
 	fclose(outTrajectories); outTrajectories = NULL;
 	fclose(outAverages); outAverages = NULL;
 
