@@ -41,7 +41,7 @@ for rho in rhos:
 
 	# Create the output folder if it doesn't exist
 	try:
-		dirname = filename
+		dirname = 'run/'+filename
 		os.makedirs(dirname)
 	except OSError, e:
 		print >>sys.stderr, 'Execution failed:', e
@@ -53,7 +53,7 @@ for rho in rhos:
 		# File for general simulation output
 		output = open(dirname+'/'+filename+'_output', 'w+', 1)
 		print 'Start simulation...'
-		command = ['time', '../leapfrog', repr(N), repr(rho), repr(T), repr(rc), repr(dt), repr(nequil), repr(nproduct), repr(binwidth)]
+		command = ['time', '../../src/leapfrog', repr(N), repr(rho), repr(T), repr(rc), repr(dt), repr(nequil), repr(nproduct), repr(binwidth)]
 		print '	   With command:', ' '.join(command)
 		result = Popen(command, stdout=output, stderr=STDOUT, cwd=dirname).communicate()
 
@@ -77,7 +77,7 @@ subNum = 0
 
 for rho in rhos:
 	# File/Foldername where output is stored
-	dirname = 'N_%(N).d_rho_%(rho).2f_T_%(T).2f_rc_%(rc).2f_dt_%(dt).3f_nequil_%(nequil).d_nproduct_%(nproduct).d_binwidth_%(binwidth).3f' % \
+	dirname = 'run/'+'N_%(N).d_rho_%(rho).2f_T_%(T).2f_rc_%(rc).2f_dt_%(dt).3f_nequil_%(nequil).d_nproduct_%(nproduct).d_binwidth_%(binwidth).3f' % \
 	{'N': N, 'rho': rho, 'T': T, 'rc': rc, 'dt': dt, 'nequil': nequil, 'nproduct': nproduct, 'binwidth': binwidth}
 
 	averages = csv2rec(dirname+'/outAvgFinal.txt', delimiter="\t", names=['t', 'T','Tt','Etot','Etott'])
