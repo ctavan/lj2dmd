@@ -360,7 +360,7 @@ int main(int argc, char *argv[])
 			r[i] = r_next[i];
 
 			// Write trajectories to a file
-			fprintf(outTrajectories, "%6.3f\t%6d\t%e\t%e\t%e\t%e\n", t, i, r[i].x, r[i].y, v[i].x, v[i].y);
+			// fprintf(outTrajectories, "%6.3f\t%6d\t%e\t%e\t%e\t%e\n", t, i, r[i].x, r[i].y, v[i].x, v[i].y);
 		}
 
 		// Equilibration phase, scale velocities to keep temperature
