@@ -175,6 +175,8 @@ TAverager avg_epot;			// Averager for the total energy
 TAverager avg_ekin;			// Averager for the total energy
 TAverager avg_etot;			// Averager for the total energy
 TAverager avg_vir;			// Averager for the total virial
+TAverager avg_vx;			// Averager for the total x-momentum (= velocity)
+TAverager avg_vy;			// Averager for the total y-momentum (= velocity)
 
 int bincount, nbins;
 double binwidth;
@@ -363,7 +365,7 @@ int main(int argc, char *argv[])
 		if (n == 0 || n == nequil)
 		{
 			fprintf(outTrajectories, "#t\tn\tr_x\t\tr_y\t\tv_x\t\tv_y\n");
-			fprintf(outAverages, "#t\tT(t)\t\t<T(t)>\t\tE_tot(T)\t<E_tot(T)>\t\tE_kin(T)\t\t<E_kin(T)>\t\tE_pot(T)\t\t<E_pot(T)>\n");
+			fprintf(outAverages, "#t\tT(t)\t\t<T(t)>\t\tE_tot(T)\t<E_tot(T)>\t\tE_kin(T)\t\t<E_kin(T)>\t\tE_pot(T)\t\t<E_pot(T)>\tv_x\t<v_x>\tv_y\t<v_y>\n");
 		}
 
 		// Current time
@@ -415,9 +417,12 @@ int main(int argc, char *argv[])
 			double etot = (epot + ekin);
 			avg_etot.add(etot);
 
+			avg_vx.add(vsum.x);
+			avg_vy.add(vsum.y);
+
 			// update_histogram();
 
-			fprintf(outAverages, "%6.3f\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", t, Tt, avg_temp.average(), etot, avg_etot.average(), ekin, avg_ekin.average(), epot, avg_epot.average());
+			fprintf(outAverages, "%6.3f\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", t, Tt, avg_temp.average(), etot, avg_etot.average(), ekin, avg_ekin.average(), epot, avg_epot.average(), vsum.x, avg_vx.average(), vsum.y, avg_vy.average());
 		}
 
 		if ((n+1)%(nt/10) == 0 || n == 0) {
@@ -752,6 +757,8 @@ void init_averagers()
 	avg_ekin.init();
 	avg_etot.init();
 	avg_vir.init();
+	avg_vx.init();
+	avg_vy.init();
 	printf("Averagers initialized!\n");
 
 	// Histogram for pair correlation function
