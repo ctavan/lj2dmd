@@ -137,7 +137,7 @@ fig.subplots_adjust(hspace=.4)
 fig.suptitle(r'Evolution of Momentum-Components during Equilibration')
 
 subNum = 0
-locs = [2, 3, 3]
+locs = [2, 2, 2]
 for T in Ts:
 	subNum += 1
 	# File/Foldername where output is stored
@@ -211,7 +211,8 @@ for T in Ts:
 		ax.axis([-1, max(data['x'])+1, -1, max(data['y'])+1])
 
 		if not debug:
-			filename = 'snapshot_T_%(T).2f%(extension)s' % {'T': T, 'extension': extension}
+			filename = 'snapshot_T_%(T).2f' % {'T': T}
+			filename = filename.replace('.', '_')+extension
 			plt.savefig(filename)
 
 

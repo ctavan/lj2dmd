@@ -143,6 +143,45 @@ Anschließend können nach dem Leap-Frog-Schema die Geschwindigkeiten und Orte f
 Es werden zunächst $n\ind{equil}$ dieser MD-Schritte ausgeführt bis das System im Gleichgewicht ist, hierbei werden die Geschwindigkeiten regelmäßig skaliert um die gewünschte Temperatur einzustellen. Anschließend können $n\ind{product}$ Schritte ausgeführt werden. Hierbei werden können dann die statistischen Mittelwerte berechnet werden, die wir eigentlich suchen, was jedoch in dieser Aufgabe noch keine Anwendung findet. Parallel werden Temperatur und Gesamtenergie sowie deren Mittelwerte ausgegeben um sicherzustellen, dass sich das System im Gleichgewicht befindet (die Mittelwerte sollten konstant sein).
 % subsection md_algorithms (end)
 
+\subsection{Auswertung} % (fold)
+\label{sub:auswertung}
+Die folgenden Auswertungen beziehen sich jeweils auf ein System aus $N=100$ Teilchen bei einer Dichte von $\rho = 0.1$ und Temperaturen von $T \in \{0.1, 1.0, 10.0\}$. Es wurden jeweils $500\,000$ Zeitschritte der Länge $\Delta t = 0.001$ ausgeführt. In allen Plots ist nur jeder 500. Zeitschritt aufgetragen.
+\minisec{Energien}
+Der Verlauf von kinetischer Energie $E_{kin}$, potentieller Energie $E_{pot}$ und Gesamtenergie $E_{tot}$ ist in Abb. \ref{fig:energies} für dargestellt für die drei betrachteten Temperaturen dargestellt. Man erkennt deutlich, dass sich das System bei höheren Temperaturen deutlich schneller equilibriert, als bei niedrigeren.
+\begin{figure}[tbp]
+\hspace*{-3em}\vspace*{-1.5cm}  \includegraphics[width=17cm]{../energies}
+ \caption{Zeitentwicklung der Energien während der Equilibrierung für die drei verschiedenen Temperaturen in logarithmischer Auftragung.}\label{fig:energies}
+\end{figure}
+
+\minisec{Impulse}
+Die Entwicklung der $x$- und $y$-Komponente des Gesamtimpulses sind in Abb. \ref{fig:momenta} dargestellt. Es ist ein leichter Drift hin zu positiven Impulsen zu erkennen, der jedoch im Bereich von $10^{-13}$ liegt und damit gegenüber den mittleren Teilchengeschwindigkeiten, die im Bereich von $0.01$ bis $1$ liegen, vernachlässigt werden kann.
+\begin{figure}[tbp]
+\hspace*{-3em}\vspace*{-1.5cm}  \includegraphics[width=17cm]{../momenta}
+ \caption{Zeitentwicklung der Komponenten des Gesamtimpulses während der Equilibrierung für die drei verschiedenen Temperaturen in logarithmischer Auftragung.}\label{fig:momenta}
+\end{figure}
+
+\minisec{Konfigurationen}
+Die Abbildungen \ref{fig:config01}, \ref{fig:config1} und \ref{fig:config10} zeigen jeweils die Start- und Endkonfiguration der Simulationen bei den drei verschiedenen Temperaturen. Man erkennt, dass das System bei $T=0.1$ kristallisiert während es bei $T=1.0$ und $T=10.0$ ungeordnet bleibt.
+
+
+\begin{figure}[tbp]
+\centering
+\vspace*{-1cm}\includegraphics[width=14cm]{../snapshot_T_0_10}
+\vspace*{-1.5cm} \caption{Start- und Endkonfiguration für $T=0.1$}\label{fig:config01}
+\end{figure}
+\begin{figure}[tbp]
+\centering
+\vspace*{-1cm}\includegraphics[width=14cm]{../snapshot_T_1_00}
+\vspace*{-1.5cm} \caption{Start- und Endkonfiguration für $T=1.0$}\label{fig:config1}
+\end{figure}
+\begin{figure}[tbp]
+\centering
+\vspace*{-1cm}\includegraphics[width=14cm]{../snapshot_T_10_00}
+\vspace*{-1.5cm} \caption{Start- und Endkonfiguration für $T=10.0$}\label{fig:config10}
+\end{figure}
+
+% subsection auswertung (end)
+
 % \subsection{Berechnung physikalischer Größen} % (fold)
 % \label{sub:berechnung_physikalischer_groessen}
 % 
