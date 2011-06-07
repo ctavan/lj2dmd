@@ -117,7 +117,7 @@ struct TAverager
 };
 
 double rand_value(double min, double max);
-TPartDist distance_special(double x1, double y1, double x2, double y2);
+TPartDist distance_special(TVector vector1, TVector vector2);
 void print_coords(const char* filename);
 void update_histogram();
 
@@ -134,6 +134,7 @@ double u_lj_deriv_shift;
 void forces();
 void scale_velocities();
 void update_histogram();
+void init_averagers();
 
 /**
  * Global variables
@@ -144,6 +145,7 @@ const int nsamp = 10;				// Sample every nsamp timesteps
 const double grmax = 3.5;			// Maximum radius for sampling g(r)
 
 // System parameters
+int startconf;				// 1 for random, 2 for sc-lattice
 int N;						// Number of particles
 double rho;					// Density of the system
 double lx = 0, ly = 0;		// Dimensions of the simulation box, is calculated according 
@@ -192,21 +194,20 @@ int main(int argc, char *argv[])
 
 	if (argc < 9)
 	{
-		printf("Usage: %s <N> <eta> <dr> <nequil> <nproduct> <binwidth>\n", argv[0]);
+		printf("Usage: %s <N> <rho> <T> <rc> <dt> <startconf> <nequil> <nproduct>\n", argv[0]);
 		printf("\t<N>        Number of particles\n");
 		printf("\t<rho>      Particle density\n");
 		printf("\t<T>        Temperature\n");
 		printf("\t<rc>       Lennard-Jones cut-off radius\n");
 		printf("\t<dt>       Length of one timestep\n");
+		printf("\t<startconf>Type of start configuration: 1 for random, 2 for sc-lattice\n");
 		printf("\t<nequil>   Number of equilibration timesteps to be performed\n");
 		printf("\t<nproduct> Number of production timesteps to be performed\n");
-		printf("\t<binwidth> Width of a bin for correlation length histogram\n");
+		// printf("\t<binwidth> Width of a bin for correlation length histogram\n");
 		exit(EXIT_SUCCESS);
 	}
 
 	outGr = fopen("outGr.txt", "w+");
-	outTrajectories = fopen("outTrajectories.txt", "w+");
-	outAverages = fopen("outAverages.txt", "w+");
 
 	// Parse commandline parameters
 	N = atoi(argv[1]);
@@ -215,8 +216,9 @@ int main(int argc, char *argv[])
 	rc = atof(argv[4]);
 	rc2 = rc*rc;
 	dt = atof(argv[5]);
-	nequil = atof(argv[6]);
-	nproduct = atof(argv[7]);
+	startconf = atof(argv[6]);
+	nequil = atof(argv[7]);
+	nproduct = atof(argv[8]);
 	nt = nequil+nproduct;
 	double tequil = nequil*dt;
 	double tproduct = nproduct*dt;
@@ -228,6 +230,7 @@ int main(int argc, char *argv[])
 	printf("========== PARAMETERS ==========\n");
 	printf("Particles:\t\t%d\n", N);
 	printf("Density:\t\t%g\n", rho);
+	printf("Startconfig:\t\t%s\n", startconf == 1 ? "random" : "sc-lattice");
 	printf("Simulationbox lx:\t%g\n", lx);
 	printf("Simulationbox ly:\t%g\n", ly);
 	printf("Temperature:\t\t%g\n", T);
@@ -248,18 +251,47 @@ int main(int argc, char *argv[])
 	v = new TVector[N];
 	v_next = new TVector[N];
 
-	// Put all particles equally spaced in the box and assign random velocities
-	int nrows = sqrt(N);
-	double dlx = lx/(double)nrows;
-	double dly = ly/(double)nrows;
+	// Particle start positions
+	if (startconf == 1) {
+		// Put all particles randomly into the simulation box
+		int i = 0;
+		while (i < N) {
+			r[i].x = rand_value(0, lx);
+			r[i].y = rand_value(0, ly);
+			bool repeat = false;
+			// Make sure particles don't overlap. May fail for high densities...
+			for (int j = 0; j < i; j++) {
+				TPartDist rij = distance_special(r[i], r[j]);
+				// printf("check: (%g,%g) <=> (%g,%g) : %g\n", r[i].x, r[i].y, r[j].x, r[j].y, rij.r2);
+				if (rij.r2 < 1.0) {
+					if(debug) printf("overlap! choose position again: (%g,%g) <=> (%g,%g) : %g\n", r[i].x, r[i].y, r[j].x, r[j].y, rij.r2);
+					repeat = true;
+					break;
+				}
+			}
+			if (repeat) {
+				continue;
+			}
+			i++;
+		}
+	} else {
+		// Put all particles equally spaced in the box
+		int nrows = sqrt(N);
+		double dlx = lx/(double)nrows;
+		double dly = ly/(double)nrows;
+		for (int i = 0; i < N; i++)
+		{
+			// Positions
+			r[i].x = i%nrows*dlx+0.5;
+			r[i].y = floor(i/nrows)*dly+0.5;
+		}
+	}
+
+	// Start velocities
 	vsum = .0;
 	vsum2 = 0;
 	for (int i = 0; i < N; i++)
 	{
-		// Positions
-		r[i].x = i%nrows*dlx+0.5;
-		r[i].y = floor(i/nrows)*dly+0.5;
-		// Velocities
 		v[i].x = rand_value(-1., 1.);
 		v[i].y = rand_value(-1., 1.);
 		vsum += v[i];
@@ -303,39 +335,35 @@ int main(int argc, char *argv[])
 	printf("U'_s(r_c)\t= %g\n", u_lj_deriv_shifted(rc2));
 	printf("================================\n\n");
 
-
-	printf("======== INIT AVERAGERS ========\n");
-	avg_temp.init();
-	avg_epot.init();
-	avg_ekin.init();
-	avg_etot.init();
-	avg_vir.init();
-	printf("Averagers initialized!\n");
-
-	// Histogram for pair correlation function
-	binwidth = atof(argv[8]);				// Width of a histogram-bin
-	nbins = ceil(grmax/binwidth);			// Maximum correlation length to be measured should be L/2 due to periodic BC
-	bincount = 0;							// Number of counts done on the histogram
-	hist = new int[nbins];
-	for (int i = 0; i < nbins; i++) {
-		hist[i] = 0;
-	}
-	printf("Using histogram with %d bins of width %f\n", nbins, binwidth);
-	printf("================================\n\n");
+	init_averagers();
 
 	printf("======= START INTEGRATION ======\n");
 	t = 0;
-	fprintf(outTrajectories, "#t\tn\tr_x\t\tr_y\t\tv_x\t\tv_y\n");
-	fprintf(outAverages, "#t\tT(t)\t\t<T(t)>\t\tE_tot(T)\t\t<E_tot(T)>\n");
 	for (int n = 0; n <= nt; n++)
 	{
 		if (n == 0)
 		{
+			outTrajectories = fopen("outTrajectoriesEquil.txt", "w+");
+			outAverages = fopen("outAveragesEquil.txt", "w+");
 			printf("Equilibration phase started.\n");
 		}
 		if (n == nequil)
 		{
+			print_coords("outCoords_equilibrated.txt");
+			fclose(outTrajectories); outTrajectories = NULL;
+			fclose(outAverages); outAverages = NULL;
+
+			// Reset averagers
+			init_averagers();
+
+			outTrajectories = fopen("outTrajectories.txt", "w+");
+			outAverages = fopen("outAverages.txt", "w+");
 			printf("Production phase started.\n");
+		}
+		if (n == 0 || n == nequil)
+		{
+			fprintf(outTrajectories, "#t\tn\tr_x\t\tr_y\t\tv_x\t\tv_y\n");
+			fprintf(outAverages, "#t\tT(t)\t\t<T(t)>\t\tE_tot(T)\t<E_tot(T)>\t\tE_kin(T)\t\t<E_kin(T)>\t\tE_pot(T)\t\t<E_pot(T)>\n");
 		}
 
 		// Current time
@@ -372,7 +400,8 @@ int main(int argc, char *argv[])
 				scale_velocities();
 			}
 		}
-		else if (n%nsamp == 0)
+
+		if (n%nsamp == 0)
 		{
 			double Tt = vsum2/(2.0*(double)N);
 			avg_temp.add(Tt);
@@ -386,9 +415,9 @@ int main(int argc, char *argv[])
 			double etot = (epot + ekin);
 			avg_etot.add(etot);
 
-			update_histogram();
+			// update_histogram();
 
-			fprintf(outAverages, "%6.3f\t%e\t%e\t%e\t%e\n", t, Tt, avg_temp.average(), etot, avg_etot.average());
+			fprintf(outAverages, "%6.3f\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", t, Tt, avg_temp.average(), etot, avg_etot.average(), ekin, avg_ekin.average(), epot, avg_epot.average());
 		}
 
 		if ((n+1)%(nt/10) == 0 || n == 0) {
@@ -401,30 +430,30 @@ int main(int argc, char *argv[])
 
 	print_coords("outCoords_end.txt");
 
-	printf("Printing histogram for g(r) & calculating pressure\n");
-	fprintf(outGr, "#r\tg(r)\n");
-	double p = 0; // Pressure
-	for(int i = 0; i < nbins; i++) {
-		double R = i*binwidth;
-		double area = 2.0*PI*R*binwidth;
-		// Multiply g(r) by two, since in the histogram we only counted each pair once, but each pair
-		// gives two contributions to g(r)
-		double gr = 2.0*(double)hist[i]/(rho*area*(double)bincount*N);
-		fprintf(outGr, "%f\t%f\n", R, gr);
-		// Calculate other quantities from g(r)
-		if (R > 0 && R < rc) {
-			double r6i = pow(1.0/R, 6);
-			p += gr*2*PI*rho*rho*R*R*48*(r6i*r6i-0.5*r6i)*binwidth/2;
-		}
-	}
-	p = p + rho*avg_temp.average();
-	printf("Final pressure P(%g) = %g\n", rho, p);
+	// printf("Printing histogram for g(r) & calculating pressure\n");
+	// fprintf(outGr, "#r\tg(r)\n");
+	// double p = 0; // Pressure
+	// for(int i = 0; i < nbins; i++) {
+	// 	double R = i*binwidth;
+	// 	double area = 2.0*PI*R*binwidth;
+	// 	// Multiply g(r) by two, since in the histogram we only counted each pair once, but each pair
+	// 	// gives two contributions to g(r)
+	// 	double gr = 2.0*(double)hist[i]/(rho*area*(double)bincount*N);
+	// 	fprintf(outGr, "%f\t%f\n", R, gr);
+	// 	// Calculate other quantities from g(r)
+	// 	if (R > 0 && R < rc) {
+	// 		double r6i = pow(1.0/R, 6);
+	// 		p += gr*2*PI*rho*rho*R*R*48*(r6i*r6i-0.5*r6i)*binwidth/2;
+	// 	}
+	// }
+	// p = p + rho*avg_temp.average();
+	// printf("Final pressure P(%g) = %g\n", rho, p);
 
 
 	FILE *outAvgFinal;
 	outAvgFinal = fopen("outAvgFinal.txt", "w+");
-	fprintf(outAvgFinal, "#t\t<T(t)>\t\t<E_tot(T)>\trho\t\t1/rho\t\tp\n");
-	fprintf(outAvgFinal, "%6.3f\t%e\t%e\t%e\t%e\t%e\n", t, avg_temp.average(), avg_etot.average(), rho, 1.0/rho, p);
+	fprintf(outAvgFinal, "#t\t<T(t)>\t\t<E_tot(T)>\trho\t\t1/rho\n");
+	fprintf(outAvgFinal, "%6.3f\t%e\t%e\t%e\t%e\n", t, avg_temp.average(), avg_etot.average(), rho, 1.0/rho);
 	fclose(outAvgFinal); outAvgFinal = NULL;
 
 
@@ -486,7 +515,7 @@ TPartDist distance_special(TVector vector1, TVector vector2)
 	return pd;
 }
 
-/** \brief Print out current coordinates and velocities to a file
+/** \brief Print out current coordinates and velocities to a file (put particles back to simulation box)
 	
 	\author Christoph Tavan TU Berlin
 	\date 2011-02-12
@@ -498,7 +527,21 @@ void print_coords(const char* filename) {
 	FILE *outCoords;
 	outCoords = fopen(filename, "w+");
 	for (int i = 0; i < N; i++) {
-		fprintf(outCoords, "%d\t%e\t%e\t%e\t%e\n", i, r[i].x, r[i].y, v[i].x, v[i].y);
+		double rx = r[i].x; 
+		double ry = r[i].y;
+		if (rx > lx) {
+			rx -= floor(rx/lx)*lx;
+		}
+		if (rx < 0) {
+			rx += ceil(-1.0*rx/lx)*lx;
+		}
+		if (ry > ly) {
+			ry -= floor(ry/ly)*ly;
+		}
+		if (ry < 0) {
+			ry += ceil(-1.0*ry/ly)*ly;
+		}
+		fprintf(outCoords, "%d\t%e\t%e\t%e\t%e\n", i, rx, ry, v[i].x, v[i].y);
 	}
 	fclose(outCoords); outCoords = NULL;
 }
@@ -699,4 +742,26 @@ void update_histogram() {
 	}
 	// Number of times averaging is done
 	bincount++;
+}
+
+void init_averagers()
+{
+	printf("======== INIT AVERAGERS ========\n");
+	avg_temp.init();
+	avg_epot.init();
+	avg_ekin.init();
+	avg_etot.init();
+	avg_vir.init();
+	printf("Averagers initialized!\n");
+
+	// Histogram for pair correlation function
+	// binwidth = atof(argv[9]);				// Width of a histogram-bin
+	// nbins = ceil(grmax/binwidth);			// Maximum correlation length to be measured should be L/2 due to periodic BC
+	// bincount = 0;							// Number of counts done on the histogram
+	// hist = new int[nbins];
+	// for (int i = 0; i < nbins; i++) {
+	// 	hist[i] = 0;
+	// }
+	// printf("Using histogram with %d bins of width %f\n", nbins, binwidth);
+	printf("================================\n\n");
 }
