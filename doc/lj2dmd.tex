@@ -55,10 +55,10 @@
 \Titelzeile{Programmierprojekt: 2D-Lennard-Jones-Fluid}
 
 \begin{center}
-WS 2010/11 -- TU Berlin\\
-Theoretische Physik VI (Vertiefung): Statistische Physik I\\
-Michael Dacko, Lewin Stein und Christoph Tavan\\
-14.02.2011
+SoSe 2011 -- TU Berlin\\
+Statistische Physik II\\
+Dortje Schirok, Christoph Tavan und Patric Zimmermann\\
+30.06.2011
 \end{center}
 
 \section{Umsetzung}
@@ -107,13 +107,19 @@ Die mittlere quadratische Geschwindigkeit ist also ein direktes Maß für die Te
 \end{align}
 definieren, wobei $N_f = 2N - 2$ die Anzahl der Freiheitsgrade des Systems ist. Zwei Freiheitsgrade müssen abgezogen werden, da wir in der Simulation den Schwerpunkt festhalten. Da wir jedoch immer mindestens $N=100$ Teilchen simulieren wollen, haben wir in allen konkreten Berechnungen stets $N_f \approx 2N$ genähert.
 
-Die instantane Temperatur (\ref{eqn:Tt}) kann nun kontrolliert werden indem alle Geschwindigkeiten mit einem Faktor $\sqrt{ T/T(t)}$ skaliert werden. Diese Methode der Temperatur-Kontrolle setzen wir während der Equilibrierungsphase in unserem Algorithmus ein.
+Die instantane Temperatur (\ref{eqn:Tt}) kann nun kontrolliert werden, indem alle Geschwindigkeiten mit einem Faktor $\sqrt{ T/T(t)}$ skaliert werden. Diese Methode der Temperatur-Kontrolle setzen wir während der Equilibrierungsphase in unserem Algorithmus ein.
 
-im Folgenden wird der $^*$ der reduzierten Einheiten weggelassen, alle Formelzeichen beziehen sich jeweils auf die reduzierten Einheiten.
+Im Folgenden wird der $^*$ der reduzierten Einheiten weggelassen, alle Formelzeichen beziehen sich jeweils auf die reduzierten Einheiten.
 
 \subsection{Initialisierung} % (fold)
 \label{sub:initialisierung}
-Zunächst werden alle $N$ Teilchen in einer kubischen Anordnung auf die Simulationsbox verteilt. Anschließend bekommt jedes Teilchen eine gleichverteilt zufällige Geschwindigkeit zugewiesen. Die daraus resultierende Schwerpunktsgeschwindigkeit wird berechnet und die Geschwindigkeiten aller Teilchen werden entsprechend angepasst, sodass der Schwerpunkt in Ruhe ist. Die Teilchengeschwindigkeiten werden schließlich wie oben erwähnt mit dem Faktor $\sqrt{ T/T(t)}$ skaliert, sodass sich die gewünschte Temperatur einstellt.
+Zunächst werden alle $N$ Teilchen wahlweise in einer kubischen Anordnung oder zufällig (mit definierbarem Mindestabstand $r_0$) auf die Simulationsbox verteilt. Die relevanten Parameter sind hier die reduzierte Flächendichte $\rho$ sowie die Teilchenzahl $N$. Die Seitenlänge der quadratischen Simulationsbox berechnet sich demnach über
+\begin{align*}
+	L = \left( \frac{N}{\rho} \right)^{1/2}.
+\end{align*}
+Für $\rho = 0.1$ und $N = 100$ ergibt sich beispielsweise $L \approx 31.62$.
+
+Anschließend bekommt jedes Teilchen eine gleichverteilt zufällige Geschwindigkeit zugewiesen. Die daraus resultierende Schwerpunktsgeschwindigkeit wird berechnet und die Geschwindigkeiten aller Teilchen werden entsprechend angepasst, sodass der Schwerpunkt in Ruhe ist. Die Teilchengeschwindigkeiten werden schließlich wie oben erwähnt mit dem Faktor $\sqrt{ T/T(t)}$ skaliert, sodass sich die gewünschte Temperatur einstellt.
 
 Mit dieser Startkonfiguration wird der MD-Algorithmus gestartet.
 % subsection initialisierung (end)
@@ -134,70 +140,70 @@ Anschließend können nach dem Leap-Frog-Schema die Geschwindigkeiten und Orte f
 	r(t+\Delta t) &= r(t) + \Delta t v(t+\Delta t/2).
 \end{align}
 
-Es werden zunächst $n\ind{equil}$ dieser MD-Schritte ausgeführt bis das System im Gleichgewicht ist, hierbei werden die Geschwindigkeiten regelmäßig skaliert um die gewünschte Temperatur einzustellen. Anschließend werden $n\ind{product}$ Schritte ausgeführt. Hierbei werden die statistischen Mittelwerte berechnet, die wir eigentlich suchen. Parallel werden Temperatur und Gesamtenergie sowie deren Mittelwerte ausgegeben um sicherzustellen, dass sich das System im Gleichgewicht befindet (die Mittelwerte sollten konstant sein).
+Es werden zunächst $n\ind{equil}$ dieser MD-Schritte ausgeführt bis das System im Gleichgewicht ist, hierbei werden die Geschwindigkeiten regelmäßig skaliert um die gewünschte Temperatur einzustellen. Anschließend können $n\ind{product}$ Schritte ausgeführt werden. Hierbei werden können dann die statistischen Mittelwerte berechnet werden, die wir eigentlich suchen, was jedoch in dieser Aufgabe noch keine Anwendung findet. Parallel werden Temperatur und Gesamtenergie sowie deren Mittelwerte ausgegeben um sicherzustellen, dass sich das System im Gleichgewicht befindet (die Mittelwerte sollten konstant sein).
 % subsection md_algorithms (end)
 
-\subsection{Berechnung physikalischer Größen} % (fold)
-\label{sub:berechnung_physikalischer_groessen}
-
-\minisec{Paarkorrelationsfunktion}
-Zur Berechnung der Paarkorrelationsfunktion $g(r)$ wird jedes Teilchen als Mittelpunkt konzentrischer Kreisschalen der Dicke $\Delta r$ angesehen. Nun wird für jede Kreisschale die Anzahl $n(r)$ der Teilchen gezählt, die sich im Abstand zwischen $r$ und $r+\Delta r$ befinden. Daraus lässt sich für jede Kreisschale die lokale Teilchendichte
-\begin{align}
-	\rho(r) = \frac{n(r)}{2 \pi r \Delta r} 
-\end{align}
-berechnen. Bezieht man diese lokale Teilchendichte nun noch auf die durschnittliche Dichte $\rho$ des Gesamtsystems erhält man die Paarkorrelationsfunktion
-\begin{align}
-	\rho(r) = \frac{1}{\rho} \frac{n(r)}{2 \pi r \Delta r}.
-\end{align}
-
-\minisec{Druck}
-Der Druck wurde direkt aus der Paarkorrelationsfunktion wie in \cite{sperandeo} beschrieben berechnet.
-% subsection berechnung_physikalischer_größen (end)
-
-\section{Ergebnisse} % (fold)
-\label{sec:ergebnisse}
-Sofern nicht anders erwähnt wurden folgende Parameter für die Simulationen verwendet:
-\begin{align*}
-	N &= 100\\
-	T &= 1.8\\
-	r_c &= 2.5 \;\text{und}\; 2^{1/6}\\
-	\Delta t &= 0.01\\
-	n\ind{equil} &= 2000\\
-	n\ind{product} &= 6000\\
-	\Delta r &= 0.05\\
-\end{align*}
-Wie Abb. \ref{fig:T_Mean} deutlich zeigt fluktuiert der Mittelwert der Temperatur während der Produktionsphase kaum was ein Zeichen für eine ausreichende Equilibrierung ist. In verschiedenen Simulationsläufen schwankte der Mittelwert der Temperatur allerdings um etwa $5 \%$ um den vorgegebenen Wert von $T = 1.8$.
-\begin{figure}[tbp]
- \centering
-  \includegraphics[width=12cm]{../T_mean}
- \caption{Instantane Temperatur und Entwicklung des Mittelwerts der Temperatur während der Produktionsphase bei $\rho = 0.84$.}\label{fig:T_Mean}
-\end{figure}
-
-\minisec{Paarkorrelationsfunktion}
-Die Paarkorrelationsfunktion ist für drei verschiedene Dichten ist in Abb. \ref{fig:g_r} dargestellt. Sowohl qualitativ als auch quantitativ ergibt sich eine sehr gute Übereinstimmung mit Abb. 3 a) aus \cite{sperandeo}.
-\begin{figure}[tbp]
- \centering
-  \includegraphics[width=14cm]{../g_r}
- \caption{Paarkorrelationsfunktion $g(r)$ für die Dichten $\rho = 0.84, 0.5$ und $0.1$.}\label{fig:g_r}
-\end{figure}
-
-\minisec{Druck}
-Wie man Abb. \ref{fig:p_rho} entnehmen kann stimmen auch die Ergebnisse für den Druck qualitativ und quantitativ sehr gut mit Abb. 5 aus \cite{sperandeo} überein.
-\begin{figure}[tbp]
- \centering
-  \includegraphics[width=12cm]{../p_rho_T18}
- \caption{Druck $P$ als Funktion der Inversen der Dichte $1/\rho$.}\label{fig:p_rho}
-\end{figure}
-
-
-\minisec{Qualitaet des VdW-Modells}
-Auch Abb. 7 aus \cite{sperandeo} konnte zumindest qualitativ reproduziert werden, wie Abb. \ref{fig:vdw} zeigt. Die Druckunterschied sind bei uns quantitativ etwas höher.
-\begin{figure}[tbp]
- \centering
-  \includegraphics[width=12cm]{../vdw}
- \caption{Druckdifferenz $\Delta P = P_R - P_{LJ}$ zwischen R-Modell ($r_c = 2^{1/6}$) und LJ-Modell ($r_c = 2.5$) als Funktion des Quadrats der Dichte $\rho^2$.}\label{fig:vdw}
-\end{figure}
-% section ergebnisse (end)
+% \subsection{Berechnung physikalischer Größen} % (fold)
+% \label{sub:berechnung_physikalischer_groessen}
+% 
+% \minisec{Paarkorrelationsfunktion}
+% Zur Berechnung der Paarkorrelationsfunktion $g(r)$ wird jedes Teilchen als Mittelpunkt konzentrischer Kreisschalen der Dicke $\Delta r$ angesehen. Nun wird für jede Kreisschale die Anzahl $n(r)$ der Teilchen gezählt, die sich im Abstand zwischen $r$ und $r+\Delta r$ befinden. Daraus lässt sich für jede Kreisschale die lokale Teilchendichte
+% \begin{align}
+% 	\rho(r) = \frac{n(r)}{2 \pi r \Delta r} 
+% \end{align}
+% berechnen. Bezieht man diese lokale Teilchendichte nun noch auf die durschnittliche Dichte $\rho$ des Gesamtsystems erhält man die Paarkorrelationsfunktion
+% \begin{align}
+% 	\rho(r) = \frac{1}{\rho} \frac{n(r)}{2 \pi r \Delta r}.
+% \end{align}
+% 
+% \minisec{Druck}
+% Der Druck wurde direkt aus der Paarkorrelationsfunktion wie in \cite{sperandeo} beschrieben berechnet.
+% % subsection berechnung_physikalischer_größen (end)
+% 
+% \section{Ergebnisse} % (fold)
+% \label{sec:ergebnisse}
+% Sofern nicht anders erwähnt wurden folgende Parameter für die Simulationen verwendet:
+% \begin{align*}
+% 	N &= 100\\
+% 	T &= 1.8\\
+% 	r_c &= 2.5 \;\text{und}\; 2^{1/6}\\
+% 	\Delta t &= 0.01\\
+% 	n\ind{equil} &= 2000\\
+% 	n\ind{product} &= 6000\\
+% 	\Delta r &= 0.05\\
+% \end{align*}
+% Wie Abb. \ref{fig:T_Mean} deutlich zeigt fluktuiert der Mittelwert der Temperatur während der Produktionsphase kaum was ein Zeichen für eine ausreichende Equilibrierung ist. In verschiedenen Simulationsläufen schwankte der Mittelwert der Temperatur allerdings um etwa $5 \%$ um den vorgegebenen Wert von $T = 1.8$.
+% \begin{figure}[tbp]
+%  \centering
+%   \includegraphics[width=12cm]{../T_mean}
+%  \caption{Instantane Temperatur und Entwicklung des Mittelwerts der Temperatur während der Produktionsphase bei $\rho = 0.84$.}\label{fig:T_Mean}
+% \end{figure}
+% 
+% \minisec{Paarkorrelationsfunktion}
+% Die Paarkorrelationsfunktion ist für drei verschiedene Dichten ist in Abb. \ref{fig:g_r} dargestellt. Sowohl qualitativ als auch quantitativ ergibt sich eine sehr gute Übereinstimmung mit Abb. 3 a) aus \cite{sperandeo}.
+% \begin{figure}[tbp]
+%  \centering
+%   \includegraphics[width=14cm]{../g_r}
+%  \caption{Paarkorrelationsfunktion $g(r)$ für die Dichten $\rho = 0.84, 0.5$ und $0.1$.}\label{fig:g_r}
+% \end{figure}
+% 
+% \minisec{Druck}
+% Wie man Abb. \ref{fig:p_rho} entnehmen kann stimmen auch die Ergebnisse für den Druck qualitativ und quantitativ sehr gut mit Abb. 5 aus \cite{sperandeo} überein.
+% \begin{figure}[tbp]
+%  \centering
+%   \includegraphics[width=12cm]{../p_rho_T18}
+%  \caption{Druck $P$ als Funktion der Inversen der Dichte $1/\rho$.}\label{fig:p_rho}
+% \end{figure}
+% 
+% 
+% \minisec{Qualitaet des VdW-Modells}
+% Auch Abb. 7 aus \cite{sperandeo} konnte zumindest qualitativ reproduziert werden, wie Abb. \ref{fig:vdw} zeigt. Die Druckunterschied sind bei uns quantitativ etwas höher.
+% \begin{figure}[tbp]
+%  \centering
+%   \includegraphics[width=12cm]{../vdw}
+%  \caption{Druckdifferenz $\Delta P = P_R - P_{LJ}$ zwischen R-Modell ($r_c = 2^{1/6}$) und LJ-Modell ($r_c = 2.5$) als Funktion des Quadrats der Dichte $\rho^2$.}\label{fig:vdw}
+% \end{figure}
+% % section ergebnisse (end)
 
 
 \section{Code} % (fold)
@@ -212,5 +218,6 @@ Der Quellcode liegt diesem Text bei und muss im Ordner \texttt{src} via \texttt{
 \begin{thebibliography}{xx}
 	\bibitem{smit} D. Frenkel, B. Smit: \emph{Understanding Molecular Simulations, second edition} Academic Press, Elsevier (2002)
 	\bibitem{sperandeo} R. M. Sperandeo-Mineo, G. Tripi: \emph{Microcomputer Simulation of a two-dimensional Lennard-Jones fluid: effects of repulsive and attractive forces.} Eur. J. Phys. \textbf{8}, 117-124 (1984)
+	\bibitem{tavan} C. Tavan, L. Stein, M. Dacko: \emph{Programmierprojekt Statistische Physik I, WS 2010/11, TU Berlin}
 \end{thebibliography}
 \end{document}

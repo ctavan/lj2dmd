@@ -1,2 +1,7 @@
 *.o
 *.txt
+*.aux
+*.log
+*.synctex.gz
+*.fdb_latexmk
+*.out
