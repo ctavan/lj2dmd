@@ -113,7 +113,7 @@ Im Folgenden wird der $^*$ der reduzierten Einheiten weggelassen, alle Formelzei
 
 \subsection{Initialisierung} % (fold)
 \label{sub:initialisierung}
-Zunächst werden alle $N$ Teilchen wahlweise in einer kubischen Anordnung oder zufällig (mit definierbarem Mindestabstand $r_0$) auf die Simulationsbox verteilt. Die relevanten Parameter sind hier die reduzierte Flächendichte $\rho$ sowie die Teilchenzahl $N$. Die Seitenlänge der quadratischen Simulationsbox berechnet sich demnach über
+Zunächst werden alle $N$ Teilchen wahlweise in einer kubischen Anordnung oder zufällig auf die Simulationsbox verteilt. Bei zufälliger Verteilung werden die Teilchen überlappungsfrei angeordnet, \dH es wird sichergestellt, dass alle Teilchenschwerpunkte mindestens einen Abstand von einem Teilchendurchmesser zueinander haben. Die relevanten Eingabeparameter sind hier die reduzierte Flächendichte $\rho$ sowie die Teilchenzahl $N$. Die Seitenlänge der quadratischen Simulationsbox berechnet sich demnach über
 \begin{align*}
 	L = \left( \frac{N}{\rho} \right)^{1/2}.
 \end{align*}
