@@ -76,6 +76,10 @@ for T in Ts:
 figNum = 0
 
 # Create new figure
+
+
+# =============================================
+# Energy-evolution for all temperatures
 figNum += 1
 
 fig = plt.figure(figNum, frameon=False, figsize=(9,12)) # , figsize=(9,11)
@@ -85,10 +89,7 @@ fig.suptitle(r'Time-evolution of Energies during Equilibration')
 
 subNum = 0
 
-# =============================================
-# Energy-evolution for all temperatures
 locs = [3, 6, 6]
-txtpos = [-25, 50, 600]
 for T in Ts:
 	subNum += 1
 	# File/Foldername where output is stored
@@ -123,6 +124,52 @@ for T in Ts:
 
 	if not debug:
 		plt.savefig('energies'+extension)
+
+
+# =============================================
+# Momentum-evolution for all temperatures
+figNum += 1
+
+fig = plt.figure(figNum, frameon=False, figsize=(9,12)) # , figsize=(9,11)
+fig.clf() # clear figure
+fig.subplots_adjust(hspace=.4)
+fig.suptitle(r'Evolution of Momentum-Components during Equilibration')
+
+subNum = 0
+locs = [2, 3, 3]
+for T in Ts:
+	subNum += 1
+	# File/Foldername where output is stored
+	dirname = 'run/'+'N_%(N).d_rho_%(rho).2f_T_%(T).2f_rc_%(rc).2f_dt_%(dt).3f_nequil_%(nequil).d_nproduct_%(nproduct).d_startconf_%(startconf).3f' % \
+	{'N': N, 'rho': rho, 'T': T, 'rc': rc, 'dt': dt, 'nequil': nequil, 'nproduct': nproduct, 'startconf': startconf}
+
+	averages = csv2rec(dirname+'/outAvgFinal.txt', delimiter="\t", names=['t', 'T', 'Etot'])
+
+	print 'Plotting momentum vs time'
+
+	ax = fig.add_subplot(len(Ts),1,subNum)
+	# ax.text(2, txtpos[subNum-1], r'$T = %(T).3f$' % {'T': float(averages['T'][0])})
+	title(r'Temperature $T = %(T).3f$' % {'T': float(averages['T'][0])}, fontsize=12)
+	# ax.text(2.5, 2.3, r'$\rho = %(rho).3f$' % {'rho': rho})
+	# ax.text(2.5, 1.7, r'$rc = %(rc).3f$' % {'rc': rc})
+
+	ax.set_xlabel(r'Time $t$')
+	ax.set_ylabel(r'Component of momentum $p_i$')
+
+	data = csv2rec(dirname+'/outAveragesEquil.txt', delimiter="\t", names=['t', 'T', 'Tavg', 'Etot', 'Etotavg', 'Ekin', 'Ekinavg', 'Epot', 'Epotavg', 'vx', 'vxavg', 'vy', 'vyavg'])
+	ax.plot(data['t'], data['vx'], 'r.', markevery = 10, label = r'$p_x$')
+	ax.plot(data['t'], data['vy'], 'bx', markevery = 10, label = r'$p_y$')
+
+	handles, labels = ax.get_legend_handles_labels()
+	ax.legend(handles, labels, loc = locs[subNum-1])
+
+	# ax.set_xscale('log')
+	# ax.set_xlim(1, float(data['t'][-1]))
+
+	# ax.axis([0, 3.5, -1, 4])
+
+	if not debug:
+		plt.savefig('momenta'+extension)
 
 # # =============================================
 # # g(r) for 3 denisities
